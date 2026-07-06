@@ -12,18 +12,25 @@ export async function updateSettings(input: AppSettings) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Nicht angemeldet");
 
-  const { error } = await supabase.from("app_settings").upsert([
-    {
-      user_id: user.id,
-      profile: input.profile,
-      org_name: input.orgName?.trim() || null,
-      auto_extract: input.autoExtract,
-      duplicate_warning: input.duplicateWarning,
-      dashboard_period: input.dashboardPeriod,
-      default_payment: input.defaultPayment,
-      updated_at: new Date().toISOString(),
-    },
-  ]);
+  const base = {
+    user_id: user.id,
+    profile: input.profile,
+    org_name: input.orgName?.trim() || null,
+    auto_extract: input.autoExtract,
+    duplicate_warning: input.duplicateWarning,
+    dashboard_period: input.dashboardPeriod,
+    default_payment: input.defaultPayment,
+    updated_at: new Date().toISOString(),
+  };
+
+  let { error } = await supabase
+    .from("app_settings")
+    .upsert([{ ...base, logo_path: input.logoPath }]);
+
+  // Solange Migration 0006 (logo_path) fehlt: restliche Einstellungen trotzdem speichern
+  if (error && /logo_path/i.test(error.message)) {
+    ({ error } = await supabase.from("app_settings").upsert([base]));
+  }
 
   if (error) {
     if (/app_settings/.test(error.message) && /(not exist|not find|schema)/i.test(error.message)) {

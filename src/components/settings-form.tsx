@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 import { updateSettings } from "@/lib/actions/settings";
 import type { AppProfile } from "@/lib/profile";
 import type { AppSettings, DashboardPeriodKey } from "@/lib/settings";
@@ -40,18 +41,70 @@ const PAYMENT_OPTIONS: { value: PaymentMethod; label: string }[] = [
   { value: "other", label: "Sonstige" },
 ];
 
-export function SettingsForm({ initial }: { initial: AppSettings }) {
+export function SettingsForm({
+  initial,
+  logoUrl = null,
+}: {
+  initial: AppSettings;
+  /** Signierte URL des aktuellen eigenen Logos (für die Vorschau) */
+  logoUrl?: string | null;
+}) {
   const router = useRouter();
   const [form, setForm] = useState<AppSettings>(initial);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [removeLogo, setRemoveLogo] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const set = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  function handleLogoChange(file: File | null) {
+    if (!file) return;
+    if (!/^image\/(png|jpeg)$/.test(file.type)) {
+      toast.error("Bitte PNG oder JPG wählen.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Logo zu groß (max. 2 MB).");
+      return;
+    }
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+    setRemoveLogo(false);
+  }
+
   function handleSave() {
     startTransition(async () => {
       try {
-        await updateSettings(form);
+        let logoPath = removeLogo ? null : form.logoPath;
+
+        if (logoFile) {
+          const supabase = createClient();
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (!user) throw new Error("Nicht angemeldet");
+          const ext = logoFile.type === "image/png" ? "png" : "jpg";
+          const path = `${user.id}/branding/logo-${Date.now()}.${ext}`;
+          const { error: uploadError } = await supabase.storage
+            .from("receipts")
+            .upload(path, logoFile, { contentType: logoFile.type });
+          if (uploadError) throw new Error(uploadError.message);
+          logoPath = path;
+        }
+
+        await updateSettings({ ...form, logoPath });
+
+        // Altes Logo aufräumen (best effort)
+        if (initial.logoPath && initial.logoPath !== logoPath) {
+          const supabase = createClient();
+          void supabase.storage.from("receipts").remove([initial.logoPath]);
+        }
+
+        setForm((f) => ({ ...f, logoPath }));
+        setLogoFile(null);
+        setRemoveLogo(false);
         toast.success("Einstellungen gespeichert");
         router.refresh();
       } catch (err) {
@@ -59,6 +112,8 @@ export function SettingsForm({ initial }: { initial: AppSettings }) {
       }
     });
   }
+
+  const shownLogo = logoPreview ?? (removeLogo ? null : logoUrl);
 
   return (
     <div className="space-y-6">
@@ -113,6 +168,44 @@ export function SettingsForm({ initial }: { initial: AppSettings }) {
             />
             <p className="mt-1 text-xs text-ink-muted">
               Erscheint in der Kopfzeile der App und auf den PDF-Berichten.
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="logo-upload">Eigenes Logo</Label>
+            {shownLogo && (
+              // eslint-disable-next-line @next/next/no-img-element -- signierte Storage-URL bzw. lokale Vorschau
+              <img
+                src={shownLogo}
+                alt="Logo-Vorschau"
+                className="mb-2 h-12 w-auto rounded border border-line bg-surface p-1"
+              />
+            )}
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                id="logo-upload"
+                type="file"
+                accept="image/png,image/jpeg"
+                onChange={(e) => handleLogoChange(e.target.files?.[0] ?? null)}
+                className="block text-sm text-ink-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-700 hover:file:bg-primary-100"
+              />
+              {(shownLogo || form.logoPath) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRemoveLogo(true);
+                    setLogoFile(null);
+                    setLogoPreview(null);
+                  }}
+                  className="text-sm font-medium text-expense-text hover:underline"
+                >
+                  Logo entfernen
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-ink-muted">
+              Erscheint in deiner Kopfzeile und auf deinen PDF-Berichten (PNG/JPG,
+              max. 2 MB). Das App-Symbol auf dem Startbildschirm bleibt das
+              gemeinsame Logo der Installation.
             </p>
           </div>
           <div>

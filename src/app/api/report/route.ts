@@ -107,11 +107,26 @@ export async function GET(request: Request) {
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
 
-  // Das mitgelieferte Logo gehört zum Deployment-Inhaber (Env-Profil).
-  // Nutzt eine zweite Person im selben Deployment das andere Profil,
-  // bleibt ihr Bericht neutral statt z.B. ein fremdes Vereinslogo zu tragen.
+  // Eigenes Logo des Nutzers hat Vorrang; das mitgelieferte Logo gehört dem
+  // Deployment-Inhaber (Env-Profil) — eine zweite Person mit anderem Profil
+  // bekommt sonst einen neutralen Bericht statt eines fremden Vereinslogos.
   let logo: Awaited<ReturnType<typeof doc.embedPng>> | null = null;
-  if (settings.profile === ENV_PROFILE) {
+  if (settings.logoPath) {
+    try {
+      const { data: blob } = await supabase.storage
+        .from("receipts")
+        .download(settings.logoPath);
+      if (blob) {
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        logo = settings.logoPath.endsWith(".png")
+          ? await doc.embedPng(bytes)
+          : await doc.embedJpg(bytes);
+      }
+    } catch {
+      // ohne eigenes Logo weitermachen
+    }
+  }
+  if (!logo && settings.profile === ENV_PROFILE) {
     try {
       logo = await doc.embedPng(
         await readFile(path.join(process.cwd(), "public", "logo.png")),

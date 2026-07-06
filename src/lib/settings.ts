@@ -16,6 +16,8 @@ export interface AppSettings {
   dashboardPeriod: DashboardPeriodKey;
   /** Vorausgewählte Zahlungsart bei neuen Buchungen */
   defaultPayment: PaymentMethod;
+  /** Eigenes Logo (Storage-Pfad im receipts-Bucket, {uid}/branding/…) */
+  logoPath: string | null;
   /** true = Nutzer hat seine Einstellungen (v.a. das Profil) schon einmal gespeichert */
   saved: boolean;
 }
@@ -27,6 +29,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   duplicateWarning: true,
   dashboardPeriod: "alle",
   defaultPayment: "cash",
+  logoPath: null,
   saved: false,
 };
 
@@ -37,6 +40,7 @@ interface SettingsRow {
   duplicate_warning: boolean | null;
   dashboard_period: string | null;
   default_payment: string | null;
+  logo_path?: string | null;
 }
 
 const PERIOD_KEYS: DashboardPeriodKey[] = ["alle", "30t", "90t", "12m", "jahr"];
@@ -53,11 +57,9 @@ export async function getSettings(
   userId?: string,
 ): Promise<AppSettings> {
   try {
-    let query = supabase
-      .from("app_settings")
-      .select(
-        "profile, org_name, auto_extract, duplicate_warning, dashboard_period, default_payment",
-      );
+    // select("*") statt Spaltenliste: bleibt robust, wenn eine neue Spalte
+    // (z.B. logo_path aus Migration 0006) noch nicht angelegt wurde
+    let query = supabase.from("app_settings").select("*");
     if (userId) query = query.eq("user_id", userId);
     const { data, error } = await query.maybeSingle();
     if (error || !data) return DEFAULT_SETTINGS;
@@ -78,6 +80,7 @@ export async function getSettings(
       defaultPayment: PAYMENT_KEYS.includes(row.default_payment as PaymentMethod)
         ? (row.default_payment as PaymentMethod)
         : DEFAULT_SETTINGS.defaultPayment,
+      logoPath: row.logo_path ?? null,
     };
   } catch {
     return DEFAULT_SETTINGS;

@@ -38,6 +38,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     categoryCountP,
   ]);
 
+  // Eigenes Logo des Nutzers (falls hinterlegt) statt des Deployment-Logos
+  let userLogoUrl: string | null = null;
+  if (settings.logoPath) {
+    const { data: signed } = await supabase.storage
+      .from("receipts")
+      .createSignedUrl(settings.logoPath, 60 * 60);
+    userLogoUrl = signed?.signedUrl ?? null;
+  }
+
   // Startkategorien erst anlegen, wenn der Nutzer sein Profil gewählt hat
   // (Einstellungen einmal gespeichert) — so bekommt z.B. eine Kleinunternehmerin
   // im selben Deployment nicht die Vereins-Kategorien vorgesetzt.
@@ -51,14 +60,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="sticky top-0 z-10 border-b border-line bg-surface/95 backdrop-blur">
           <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
             <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
-              <Image
-                src="/logo.png"
-                alt="Logo"
-                width={28}
-                height={30}
-                className="h-7 w-auto shrink-0"
-                priority
-              />
+              {userLogoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- kurzlebige signierte Storage-URL
+                <img
+                  src={userLogoUrl}
+                  alt="Logo"
+                  className="h-7 w-auto shrink-0"
+                />
+              ) : (
+                <Image
+                  src="/logo.png"
+                  alt="Logo"
+                  width={28}
+                  height={30}
+                  className="h-7 w-auto shrink-0"
+                  priority
+                />
+              )}
               <span className="truncate">{settings.orgName ?? terms.appName}</span>
             </span>
             <div className="hidden items-center gap-3 md:flex">
