@@ -10,6 +10,6 @@ export const config = {
   // laufen NICHT durch die Auth-Prüfung — sonst bekommt z.B. der Beleg-Scanner auf
   // der öffentlichen Einreichen-Seite statt OpenCV einen Redirect zur Login-Seite.
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|mjs|wasm|map|txt|xml)$).*)",
+    "/((?!_next/static|_next/image|_vercel|favicon\\.ico|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|mjs|wasm|map|txt|xml)$).*)",
   ],
 };
