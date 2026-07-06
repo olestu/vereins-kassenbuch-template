@@ -27,8 +27,13 @@ Gratis-Tarif von Vercel, Supabase und Groq.
   Unterschriftszeilen), CSV im Kassenbuch-Format und Komplett-Backup (ZIP mit allen
   Belegen).
 - **Einstellungen in der App**: Profil (Verein ↔ Kleinunternehmen), Vereins-/Firmenname,
-  Standard-Zeitraum der Übersicht, Standard-Zahlungsart, Duplikat-Warnung, KI-Auslesung
-  an/aus, Passwort ändern — Zahnrad oben rechts bzw. „Mehr" am Handy.
+  eigenes Logo (Kopfzeile + PDF-Berichte), Standard-Zeitraum der Übersicht,
+  Standard-Zahlungsart, Duplikat-Warnung, KI-Auslesung an/aus, Passwort ändern —
+  Zahnrad oben rechts bzw. „Mehr" am Handy.
+- **Mehrere Nutzer, ein Deployment**: Jeder Nutzer hat komplett eigene Buchungen,
+  Belege, Einstellungen, Profil und Logo. Der Admin-Account (`ADMIN_EMAIL`) legt in
+  den Einstellungen neue Nutzer an (E-Mail + Benutzername + Startpasswort) und kann
+  Passwörter zurücksetzen.
 - **Kleinunternehmer-Profil**: EÜR-Gruppen an Kategorien, EÜR-Jahresbericht mit
   ELSTER-Ausfüllhilfe statt Kassenbericht, Privatentnahme/-einlage,
   §19-Umsatzgrenzen-Wächter (25.000 € / 100.000 €), angepasste Begriffe. Umschaltbar
@@ -42,7 +47,7 @@ Gratis-Tarif von Vercel, Supabase und Groq.
 1. Auf [supabase.com](https://supabase.com) kostenlos registrieren, Projekt anlegen
    (Region Frankfurt).
 2. **SQL Editor**: die Migrationen aus [supabase/migrations/](supabase/migrations/) in
-   Reihenfolge (0001 bis 0005) ausführen.
+   Reihenfolge (0001 bis 0006) ausführen.
 3. **Authentication → Settings**: „Allow new users to sign up" deaktivieren.
 4. **Authentication → Users**: einen Nutzer (Kassenwart) mit E-Mail/Passwort anlegen.
 5. **Project Settings → API**: `Project URL`, `anon public` und `service_role` Key kopieren.
@@ -62,6 +67,7 @@ GROQ_API_KEY=…                   # Groq (Beleg-Auslesung), nur serverseitig
 SUPABASE_SERVICE_ROLE_KEY=…      # service_role (öffentliche Erstattungs-Routen), nur serverseitig
 NEXT_PUBLIC_PROFILE=verein       # Voreinstellung; in der App unter „Einstellungen" umschaltbar
 VEREIN_NAME=…                    # optionale Voreinstellung; in der App überschreibbar
+ADMIN_EMAIL=…                    # Admin-Account: Nutzerverwaltung in den Einstellungen
 ```
 
 Lokal in `.env.local`, auf Vercel unter Settings → Environment Variables
