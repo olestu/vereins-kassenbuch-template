@@ -2,6 +2,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { preconnect } from "react-dom";
 import { Toaster } from "sonner";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SwRegister } from "@/components/sw-register";
 import { DEFAULT_TERMS } from "@/lib/profile";
 import "./globals.css";
@@ -51,6 +52,7 @@ export default function RootLayout({
         {children}
         <Toaster position="top-center" richColors />
         <SwRegister />
+        <SpeedInsights />
       </body>
     </html>
   );
