@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+@theme {
+  /* Primärfarbe: Finanz-Blau */
+  --color-primary-50: #eef4fd;
+  --color-primary-100: #d9e6fa;
+  --color-primary-200: #b6cef5;
+  --color-primary-300: #8aafed;
+  --color-primary-400: #5c8ce0;
+  --color-primary-500: #3a6fd0;
+  --color-primary-600: #2a5fc4;
+  --color-primary-700: #234da1;
+  --color-primary-800: #1e3f82;
+  --color-primary-900: #1a3567;
+
+  /* Semantik: Einnahme / Ausgabe (Text-Varianten mit >=4.5:1 auf Weiß) */
+  --color-income: #1baf7a;
+  --color-income-text: #0d7a53;
+  --color-income-bg: #e4f7ef;
+  --color-expense: #e34948;
+  --color-expense-text: #b02a29;
+  --color-expense-bg: #fceaea;
+
+  /* Flächen & Tinte */
+  --color-surface: #ffffff;
+  --color-page: #f4f6fa;
+  --color-ink: #1a1f2b;
+  --color-ink-secondary: #4b5468;
+  --color-ink-muted: #7b8397;
+  --color-line: #e3e7ef;
+
+  --radius-card: 0.75rem;
+  --shadow-card: 0 1px 2px 0 rgb(26 31 43 / 0.05), 0 1px 3px 0 rgb(26 31 43 / 0.08);
+  --shadow-card-hover: 0 4px 12px 0 rgb(26 31 43 / 0.1);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Einheitlicher, sichtbarer Fokus-Ring für Tastaturbedienung */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --- Animationen (dezent & schnell; unten per prefers-reduced-motion abschaltbar) --- */
+
+/* Seitenwechsel: weiches Einblenden mit minimalem Anheben */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-page-in {
+  animation: page-in 0.22s ease-out both;
+}
+
+/* Neu gespeicherte Buchung kurz hervorheben */
+@keyframes row-highlight {
+  0%,
+  30% {
+    background-color: var(--color-primary-100);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.animate-row-highlight {
+  animation: row-highlight 2s ease-out both;
+}
+
+/* „Mehr"-Menü: von unten einschieben; Hintergrund-Abdunkelung weich einblenden */
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-sheet-in {
+  animation: sheet-in 0.18s ease-out both;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out both;
+}
+
+/* Auslöse-Blitz im Scanner */
+@keyframes shutter-flash {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.animate-shutter {
+  animation: shutter-flash 0.35s ease-out both;
+}
+
+/* Kategorie-Balken wachsen beim Erscheinen von links auf */
+@keyframes grow-bar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.animate-grow-bar {
+  transform-origin: left;
+  animation: grow-bar 0.5s ease-out both;
+}
+
+/* Skeleton-Loading: ruhiges Pulsieren */
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.skeleton {
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+  background: var(--color-line);
+  border-radius: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-in,
+  .animate-row-highlight,
+  .animate-shutter,
+  .animate-grow-bar,
+  .animate-sheet-in,
+  .animate-fade-in,
+  .skeleton {
+    animation: none;
+  }
+}
