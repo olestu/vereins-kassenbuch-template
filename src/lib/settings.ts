@@ -16,6 +16,8 @@ export interface AppSettings {
   dashboardPeriod: DashboardPeriodKey;
   /** Vorausgewählte Zahlungsart bei neuen Buchungen */
   defaultPayment: PaymentMethod;
+  /** true = Nutzer hat seine Einstellungen (v.a. das Profil) schon einmal gespeichert */
+  saved: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -25,6 +27,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   duplicateWarning: true,
   dashboardPeriod: "alle",
   defaultPayment: "cash",
+  saved: false,
 };
 
 interface SettingsRow {
@@ -61,6 +64,7 @@ export async function getSettings(
 
     const row = data as SettingsRow;
     return {
+      saved: true,
       profile:
         row.profile === "business" || row.profile === "verein"
           ? row.profile

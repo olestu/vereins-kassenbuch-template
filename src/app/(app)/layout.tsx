@@ -38,8 +38,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     categoryCountP,
   ]);
 
-  // Nur beim allerersten Login nötig
-  if (categoryCount === 0) {
+  // Startkategorien erst anlegen, wenn der Nutzer sein Profil gewählt hat
+  // (Einstellungen einmal gespeichert) — so bekommt z.B. eine Kleinunternehmerin
+  // im selben Deployment nicht die Vereins-Kategorien vorgesetzt.
+  if (categoryCount === 0 && settings.saved) {
     await seedDefaultCategories(supabase, userId, settings.profile);
   }
 

@@ -93,10 +93,16 @@ export default async function DashboardPage({
           .then((r) => (r.data ?? []) as { amount_cents: number; occurred_on: string }[])
       : Promise.resolve(null);
 
-  const [transactions, oldest, revenueRows] = await Promise.all([
+  const categoryCountP = supabase
+    .from("categories")
+    .select("id", { count: "exact", head: true })
+    .then((r) => r.count ?? 0);
+
+  const [transactions, oldest, revenueRows, categoryCount] = await Promise.all([
     transactionsP,
     oldestP,
     revenueP,
+    categoryCountP,
   ]);
 
   let limitData: { current: number; previous: number } | null = null;
@@ -148,6 +154,23 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-6">
+      {categoryCount === 0 && (
+        <div className="rounded-(--radius-card) border border-primary-200 bg-primary-50 p-5">
+          <p className="text-sm font-semibold text-ink">Willkommen! 👋</p>
+          <p className="mt-1 max-w-2xl text-sm text-ink-secondary">
+            Wähle zuerst dein Profil (Verein oder Kleinunternehmen) in den
+            Einstellungen — beim Speichern legen wir automatisch die passenden
+            Buchungs-Kategorien für dich an.
+          </p>
+          <Link
+            href="/einstellungen"
+            className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
+          >
+            Zu den Einstellungen
+          </Link>
+        </div>
+      )}
+
       <InstallApp variant="banner" />
 
       <div className="space-y-3">

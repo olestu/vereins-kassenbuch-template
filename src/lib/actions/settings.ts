@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { seedDefaultCategories } from "@/lib/supabase/seed-categories";
 import type { AppSettings } from "@/lib/settings";
 
 export async function updateSettings(input: AppSettings) {
@@ -31,6 +32,15 @@ export async function updateSettings(input: AppSettings) {
       );
     }
     throw new Error(error.message);
+  }
+
+  // Erster Speichervorgang eines neuen Nutzers: passende Startkategorien
+  // zum gewählten Profil anlegen (falls noch keine existieren)
+  const { count } = await supabase
+    .from("categories")
+    .select("id", { count: "exact", head: true });
+  if ((count ?? 0) === 0) {
+    await seedDefaultCategories(supabase, user.id, input.profile);
   }
 
   // Einstellungen wirken überall (Kopfzeile, Navigation, Berichte)

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import { createClient } from "@/lib/supabase/server";
 import { centsToEuroString } from "@/lib/money";
-import { ELSTER, EUER_FALLBACK, getTerms } from "@/lib/profile";
+import { ELSTER, ENV_PROFILE, EUER_FALLBACK, getTerms } from "@/lib/profile";
 import { getSettings } from "@/lib/settings";
 import type { TransactionWithCategory } from "@/lib/types";
 
@@ -107,13 +107,18 @@ export async function GET(request: Request) {
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
 
+  // Das mitgelieferte Logo gehört zum Deployment-Inhaber (Env-Profil).
+  // Nutzt eine zweite Person im selben Deployment das andere Profil,
+  // bleibt ihr Bericht neutral statt z.B. ein fremdes Vereinslogo zu tragen.
   let logo: Awaited<ReturnType<typeof doc.embedPng>> | null = null;
-  try {
-    logo = await doc.embedPng(
-      await readFile(path.join(process.cwd(), "public", "logo.png")),
-    );
-  } catch {
-    // ohne Logo weitermachen
+  if (settings.profile === ENV_PROFILE) {
+    try {
+      logo = await doc.embedPng(
+        await readFile(path.join(process.cwd(), "public", "logo.png")),
+      );
+    } catch {
+      // ohne Logo weitermachen
+    }
   }
 
   let page: PDFPage = doc.addPage([A4.w, A4.h]);
