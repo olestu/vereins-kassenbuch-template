@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ENV_PROFILE, type AppProfile } from "@/lib/profile";
+import { ENV_PROFILE, EUER_LINES, type AppProfile } from "@/lib/profile";
 
 type Seed = {
   name: string;
@@ -18,22 +18,53 @@ const VEREIN_CATEGORIES: Seed[] = [
   { name: "Sonstiges", type: "expense", euer_line: "Sonstige Betriebsausgaben" },
 ];
 
-const BUSINESS_CATEGORIES: Seed[] = [
-  { name: "Umsatzerlöse", type: "income", euer_line: "Umsatzerlöse (Kleinunternehmer)" },
-  { name: "Sonstige Einnahmen", type: "income", euer_line: "Sonstige betriebliche Einnahmen" },
-  { name: "Privateinlage", type: "income", is_private: true },
-  { name: "Wareneinkauf", type: "expense", euer_line: "Wareneinkauf und Material" },
-  { name: "Fremdleistungen", type: "expense", euer_line: "Bezogene Fremdleistungen" },
-  { name: "Bürobedarf", type: "expense", euer_line: "Bürobedarf" },
-  { name: "Telefon & Internet", type: "expense", euer_line: "Telekommunikation und Internet" },
-  { name: "Reisekosten", type: "expense", euer_line: "Reisekosten" },
-  { name: "Bewirtung", type: "expense", euer_line: "Bewirtungskosten" },
-  { name: "Miete & Raumkosten", type: "expense", euer_line: "Raumkosten und Miete" },
-  { name: "Versicherungen & Beiträge", type: "expense", euer_line: "Versicherungen und Beiträge" },
-  { name: "Fortbildung", type: "expense", euer_line: "Fortbildung und Fachliteratur" },
-  { name: "Sonstige Betriebsausgaben", type: "expense", euer_line: "Sonstige Betriebsausgaben" },
-  { name: "Privatentnahme", type: "expense", is_private: true },
-];
+/**
+ * Kleinunternehmer bekommen direkt die offiziellen Anlage-EÜR-Gruppen als
+ * Kategorien (je mit korrekter Formular-Zuordnung) plus Privateinlage/-entnahme.
+ */
+function businessCategorySeeds(): Seed[] {
+  return [
+    ...EUER_LINES.income.map((line) => ({
+      name: line,
+      type: "income" as const,
+      euer_line: line,
+    })),
+    { name: "Privateinlage", type: "income" as const, is_private: true },
+    ...EUER_LINES.expense.map((line) => ({
+      name: line,
+      type: "expense" as const,
+      euer_line: line,
+    })),
+    { name: "Privatentnahme", type: "expense" as const, is_private: true },
+  ];
+}
+
+/**
+ * Stellt sicher, dass alle offiziellen Kleinunternehmer-Kategorien existieren —
+ * legt nur fehlende an (Abgleich per Name), bestehende bleiben unangetastet.
+ * Wird bei jeder Profilwahl „Kleinunternehmen" aufgerufen; idempotent.
+ */
+export async function ensureBusinessCategories(supabase: SupabaseClient, userId: string) {
+  const { data: existing } = await supabase.from("categories").select("name");
+  const have = new Set(
+    ((existing ?? []) as { name: string }[]).map((c) => c.name.toLowerCase()),
+  );
+
+  const rows = businessCategorySeeds()
+    .filter((s) => !have.has(s.name.toLowerCase()))
+    .map((c) => ({
+      user_id: userId,
+      name: c.name,
+      type: c.type,
+      euer_line: c.euer_line ?? null,
+      is_private: c.is_private ?? false,
+    }));
+
+  if (rows.length > 0) {
+    await supabase.from("categories").insert(rows);
+  }
+  return rows.length;
+}
 
 /**
  * Legt die Standardkategorien an (nur beim allerersten Login relevant).
@@ -45,9 +76,12 @@ export async function seedDefaultCategories(
   userId: string,
   profile: AppProfile = ENV_PROFILE,
 ) {
-  const seeds = profile === "business" ? BUSINESS_CATEGORIES : VEREIN_CATEGORIES;
+  if (profile === "business") {
+    await ensureBusinessCategories(supabase, userId);
+    return;
+  }
   await supabase.from("categories").insert(
-    seeds.map((c) => ({
+    VEREIN_CATEGORIES.map((c) => ({
       user_id: userId,
       name: c.name,
       type: c.type,
