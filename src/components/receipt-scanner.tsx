@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { processReceiptImage } from "@/lib/image/process";
 import { Button } from "@/components/ui/button";
 
@@ -363,7 +364,11 @@ export function ReceiptScanner({
     if (file) onCapture(file);
   }
 
-  return (
+  // Portal an <body>: Das Vollbild-Overlay darf nie innerhalb des Seiteninhalts
+  // hängen — dessen Animations-Ebenen (Stacking Context) und die fixe Bottom-Nav
+  // würden sonst Teile des Scanners überdecken bzw. Taps auf den Auslöser schlucken.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
       <div className="flex items-center justify-between p-4">
         <span className="text-sm font-medium text-white">Beleg scannen</span>
@@ -488,7 +493,8 @@ export function ReceiptScanner({
           </div>
         </>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

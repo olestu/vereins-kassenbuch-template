@@ -65,7 +65,10 @@ body {
   }
 }
 .animate-page-in {
-  animation: page-in 0.22s ease-out both;
+  /* backwards statt both: eine dauerhaft „füllende" Opacity-Animation würde den
+     Seiten-Wrapper für immer zu einem eigenen Stacking Context machen und
+     Vollbild-Overlays im Inhalt unter die fixe Navigation drücken */
+  animation: page-in 0.22s ease-out backwards;
 }
 
 /* Neu gespeicherte Buchung kurz hervorheben */
