@@ -62,9 +62,10 @@ export async function POST(request: Request) {
     "- haendler = Name des Geschäfts/Ausstellers; leerer String wenn unklar.",
     "- mwst_satz (z.B. 19) und mwst_betrag nur wenn eindeutig ausgewiesen, sonst null.",
     categoryNames.length > 0
-      ? `- kategorie_vorschlag MUSS exakt einer dieser Kategorien entsprechen oder leer sein: ${categoryNames.join(", ")}.`
+      ? `- kategorie_vorschlag: Wähle die inhaltlich am besten passende dieser vorhandenen Kategorien (exakter Wortlaut): ${categoryNames.join(", ")}. Nur wenn wirklich KEINE davon zum Beleg passt, lasse kategorie_vorschlag leer.`
       : `- kategorie_vorschlag: leerer String.`,
-    `- kategorie_neu: NUR wenn kategorie_vorschlag leer bleibt, weil keine Kategorie inhaltlich passt: die am besten passende dieser offiziellen Ausgaben-Gruppen, sonst leerer String: ${EUER_LINES.expense.join(", ")}.`,
+    `- kategorie_neu: NUR wenn kategorie_vorschlag leer ist: die am besten passende dieser offiziellen Ausgaben-Gruppen (exakter Wortlaut): ${EUER_LINES.expense.join(", ")}.`,
+    "- Entscheide dich IMMER für eine Kategorie: kategorie_vorschlag und kategorie_neu dürfen niemals beide leer sein.",
     "- konfidenz = deine Gesamtsicherheit von 0.0 bis 1.0.",
   ].join("\n");
 
@@ -131,22 +132,31 @@ function parseExtraction(raw: string, validCategories: string[]): ExtractedRecei
       typeof v === "number" && Number.isFinite(v) ? v : null;
     const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
-    const datum = str(p.datum);
+    const betrag = num(p.betrag);
+    const rawDatum = str(p.datum);
+    const datum = /^\d{4}-\d{2}-\d{2}$/.test(rawDatum) ? rawDatum : null;
+    const haendler = str(p.haendler);
     const kategorie = str(p.kategorie_vorschlag);
     const kategorieNeu = str(p.kategorie_neu);
     const vorschlag = validCategories.includes(kategorie) ? kategorie : "";
 
+    // Neue Kategorie nur aus der offiziellen Liste und nur ohne passenden Bestand
+    let neu = !vorschlag && EUER_LINES.expense.includes(kategorieNeu) ? kategorieNeu : "";
+    // Immer eine Kategorie liefern: Wenn das Modell sich nicht entschieden hat,
+    // der Beleg aber lesbar war, greift die offizielle Auffanggruppe
+    if (!vorschlag && !neu && (betrag !== null || datum !== null || haendler !== "")) {
+      neu = "Sonstige Betriebsausgaben";
+    }
+
     return {
-      betrag: num(p.betrag),
+      betrag,
       waehrung: str(p.waehrung) || "EUR",
-      datum: /^\d{4}-\d{2}-\d{2}$/.test(datum) ? datum : null,
-      haendler: str(p.haendler),
+      datum,
+      haendler,
       mwst_satz: num(p.mwst_satz),
       mwst_betrag: num(p.mwst_betrag),
       kategorie_vorschlag: vorschlag,
-      // Neue Kategorie nur aus der offiziellen Liste und nur ohne passenden Bestand
-      kategorie_neu:
-        !vorschlag && EUER_LINES.expense.includes(kategorieNeu) ? kategorieNeu : "",
+      kategorie_neu: neu,
       konfidenz: Math.min(1, Math.max(0, num(p.konfidenz) ?? 0)),
     };
   } catch {
