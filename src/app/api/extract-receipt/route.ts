@@ -57,14 +57,15 @@ export async function POST(request: Request) {
     "Du liest deutsche Kassenbons/Belege aus. Antworte AUSSCHLIESSLICH mit einem JSON-Objekt, ohne Markdown, ohne Erklärung:",
     `{"betrag": 0.00, "waehrung": "EUR", "datum": "YYYY-MM-DD", "haendler": "", "mwst_satz": null, "mwst_betrag": null, "kategorie_vorschlag": "", "kategorie_neu": "", "konfidenz": 0.0}`,
     "Regeln:",
-    "- betrag = Gesamtsumme des Belegs als Zahl mit Punkt-Dezimaltrennzeichen; null wenn nicht erkennbar.",
+    "- betrag = BRUTTO-Gesamtsumme des Belegs, also der tatsächlich gezahlte Endbetrag INKLUSIVE MwSt. (bei Kassenbons meist die Zeile Summe/Total). NIEMALS den Netto-Betrag nehmen. Zahl mit Punkt-Dezimaltrennzeichen; null wenn nicht erkennbar.",
     "- datum = Belegdatum im ISO-Format; null wenn nicht erkennbar.",
     "- haendler = Name des Geschäfts/Ausstellers; leerer String wenn unklar.",
     "- mwst_satz (z.B. 19) und mwst_betrag nur wenn eindeutig ausgewiesen, sonst null.",
     categoryNames.length > 0
-      ? `- kategorie_vorschlag: Wähle die inhaltlich am besten passende dieser vorhandenen Kategorien (exakter Wortlaut): ${categoryNames.join(", ")}. Nur wenn wirklich KEINE davon zum Beleg passt, lasse kategorie_vorschlag leer.`
+      ? `- kategorie_vorschlag: Wähle die Kategorie aus dieser Liste, die den Beleg SPEZIFISCH beschreibt (exakter Wortlaut): ${categoryNames.join(", ")}. Unspezifische Sammel-Kategorien („Sonstiges", „Sonstige Betriebsausgaben" o.ä.) zählen NICHT als passend — in dem Fall kategorie_vorschlag leer lassen und kategorie_neu nutzen.`
       : `- kategorie_vorschlag: leerer String.`,
     `- kategorie_neu: NUR wenn kategorie_vorschlag leer ist: die am besten passende dieser offiziellen Ausgaben-Gruppen (exakter Wortlaut): ${EUER_LINES.expense.join(", ")}.`,
+    "- Typische Zuordnungen: Tankstelle/Kraftstoff/Parken → Kfz-Kosten; Restaurant/Café/Gaststätte → Bewirtungskosten; Bahn/Flug/Taxi/Hotel → Reisekosten; Papier/Toner/Büromaterial → Bürobedarf; Telefon-/Internetrechnung → Telekommunikation und Internet; Seminar/Kurs/Fachbuch → Fortbildung und Fachliteratur.",
     "- Entscheide dich IMMER für eine Kategorie: kategorie_vorschlag und kategorie_neu dürfen niemals beide leer sein.",
     "- konfidenz = deine Gesamtsicherheit von 0.0 bis 1.0.",
   ].join("\n");
