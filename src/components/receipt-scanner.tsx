@@ -250,45 +250,57 @@ export function ReceiptScanner({
 
   function handleShutter() {
     const video = videoRef.current;
-    if (!video || video.videoWidth === 0) return;
+    if (!video || video.videoWidth === 0) {
+      // Kein Kamerabild verfügbar: statt stummem Nichtstun in den Foto-Fallback
+      stopCamera();
+      setPhase("error");
+      return;
+    }
     setFlash(true);
+    // Nicht auf onAnimationEnd verlassen — bei „Bewegung reduzieren" feuert es nie
+    window.setTimeout(() => setFlash(false), 500);
 
-    const still = document.createElement("canvas");
-    still.width = video.videoWidth;
-    still.height = video.videoHeight;
-    still.getContext("2d")!.drawImage(video, 0, 0);
-    stillCanvasRef.current = still;
+    try {
+      const still = document.createElement("canvas");
+      still.width = video.videoWidth;
+      still.height = video.videoHeight;
+      still.getContext("2d")!.drawImage(video, 0, 0);
+      stillCanvasRef.current = still;
 
-    // Ecken auf verkleinerter Kopie suchen, dann hochskalieren
-    const work = document.createElement("canvas");
-    const scale = 640 / still.width;
-    work.width = 640;
-    work.height = Math.round(still.height * scale);
-    work.getContext("2d")!.drawImage(still, 0, 0, work.width, work.height);
+      // Ecken auf verkleinerter Kopie suchen, dann hochskalieren
+      const work = document.createElement("canvas");
+      const scale = 640 / still.width;
+      work.width = 640;
+      work.height = Math.round(still.height * scale);
+      work.getContext("2d")!.drawImage(still, 0, 0, work.width, work.height);
 
-    const detected = detectCorners(work);
-    const margin = 0.08;
-    const fallback: CornerPoints = {
-      topLeftCorner: { x: still.width * margin, y: still.height * margin },
-      topRightCorner: { x: still.width * (1 - margin), y: still.height * margin },
-      bottomRightCorner: { x: still.width * (1 - margin), y: still.height * (1 - margin) },
-      bottomLeftCorner: { x: still.width * margin, y: still.height * (1 - margin) },
-    };
+      const detected = detectCorners(work);
+      const margin = 0.08;
+      const fallback: CornerPoints = {
+        topLeftCorner: { x: still.width * margin, y: still.height * margin },
+        topRightCorner: { x: still.width * (1 - margin), y: still.height * margin },
+        bottomRightCorner: { x: still.width * (1 - margin), y: still.height * (1 - margin) },
+        bottomLeftCorner: { x: still.width * margin, y: still.height * (1 - margin) },
+      };
 
-    setCorners(
-      detected
-        ? {
-            topLeftCorner: scalePoint(detected.topLeftCorner, 1 / scale),
-            topRightCorner: scalePoint(detected.topRightCorner, 1 / scale),
-            bottomRightCorner: scalePoint(detected.bottomRightCorner, 1 / scale),
-            bottomLeftCorner: scalePoint(detected.bottomLeftCorner, 1 / scale),
-          }
-        : fallback,
-    );
-    setStillUrl(still.toDataURL("image/jpeg", 0.9));
-    setStillSize({ w: still.width, h: still.height });
-    stopCamera();
-    setPhase("review");
+      setCorners(
+        detected
+          ? {
+              topLeftCorner: scalePoint(detected.topLeftCorner, 1 / scale),
+              topRightCorner: scalePoint(detected.topRightCorner, 1 / scale),
+              bottomRightCorner: scalePoint(detected.bottomRightCorner, 1 / scale),
+              bottomLeftCorner: scalePoint(detected.bottomLeftCorner, 1 / scale),
+            }
+          : fallback,
+      );
+      setStillUrl(still.toDataURL("image/jpeg", 0.9));
+      setStillSize({ w: still.width, h: still.height });
+      stopCamera();
+      setPhase("review");
+    } catch {
+      stopCamera();
+      setPhase("error");
+    }
   }
 
   async function finish(crop: boolean) {
@@ -404,10 +416,7 @@ export function ReceiptScanner({
           className="pointer-events-none absolute inset-0 h-full w-full object-contain"
         />
         {flash && (
-          <div
-            className="animate-shutter pointer-events-none absolute inset-0 bg-white"
-            onAnimationEnd={() => setFlash(false)}
-          />
+          <div className="animate-shutter pointer-events-none absolute inset-0 bg-white" />
         )}
       </div>
 
