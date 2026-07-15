@@ -3,6 +3,7 @@
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { nextVoucherNo } from "@/lib/voucher";
 import type { PaymentMethod } from "@/lib/types";
 
 function randomToken(): string {
@@ -65,27 +66,40 @@ export async function acceptRequest(requestId: string, input: AcceptRequestInput
   if (loadError || !request) throw new Error("Antrag nicht gefunden");
   if (request.status !== "submitted") throw new Error("Antrag wurde bereits entschieden");
 
-  // 1. Buchung anlegen (Ausgabe, Beleg des Antrags wird direkt verknüpft)
-  const { data: created, error: insertError } = await supabase
-    .from("transactions")
-    .insert([
-      {
-        user_id: user.id,
-        category_id: input.categoryId,
-        amount_cents: input.amountCents,
-        occurred_on: input.occurredOn,
-        payment_method: input.paymentMethod,
-        payee: input.payee || request.submitter_name,
-        description: input.description || null,
-        receipt_path: request.receipt_path,
-        extracted_data: request.extracted_data,
-      },
-    ])
-    .select("id")
-    .single();
+  // 1. Buchung anlegen (Ausgabe, Beleg des Antrags wird direkt verknüpft) —
+  // inkl. fortlaufender Belegnummer; bei Nummern-Konflikt (gleichzeitige
+  // Buchung an anderer Stelle) mit neuer Nummer erneut versuchen
+  let created: { id: string } | null = null;
+  for (let attempt = 0; attempt < 3 && !created; attempt++) {
+    const voucherNo = await nextVoucherNo(supabase);
+    const { data, error: insertError } = await supabase
+      .from("transactions")
+      .insert([
+        {
+          user_id: user.id,
+          voucher_no: voucherNo,
+          category_id: input.categoryId,
+          amount_cents: input.amountCents,
+          occurred_on: input.occurredOn,
+          payment_method: input.paymentMethod,
+          payee: input.payee || request.submitter_name,
+          description: input.description || null,
+          receipt_path: request.receipt_path,
+          extracted_data: request.extracted_data,
+        },
+      ])
+      .select("id")
+      .single();
 
-  if (insertError || !created) {
-    throw new Error(insertError?.message ?? "Buchung konnte nicht angelegt werden");
+    if (data) {
+      created = data as { id: string };
+    } else if (insertError && insertError.code !== "23505") {
+      throw new Error(insertError.message);
+    }
+  }
+
+  if (!created) {
+    throw new Error("Buchung konnte nicht angelegt werden — bitte erneut versuchen");
   }
 
   // 2. Antrag als angenommen markieren; falls das fehlschlägt, Buchung zurückrollen,

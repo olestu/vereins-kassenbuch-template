@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { nextVoucherNo } from "@/lib/voucher";
 import type { PaymentMethod } from "@/lib/types";
 
 export interface TransactionInput {
@@ -26,45 +27,44 @@ export async function createTransaction(input: TransactionInput) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Nicht angemeldet");
 
-  // Fortlaufende Belegnummer vergeben (GoBD)
-  const { data: last } = await supabase
-    .from("transactions")
-    .select("voucher_no")
-    .order("voucher_no", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .single();
-  const voucherNo = (last?.voucher_no ?? 0) + 1;
+  // Belegnummer vergeben; bei gleichzeitiger Buchung (zweites Gerät) schlägt der
+  // Unique-Index an — dann Nummer neu ermitteln und erneut versuchen
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const voucherNo = await nextVoucherNo(supabase);
 
-  const { data: inserted, error } = await supabase
-    .from("transactions")
-    .insert([
-      {
-        user_id: user.id,
-        voucher_no: voucherNo,
-        category_id: input.categoryId,
-        amount_cents: input.amountCents,
-        occurred_on: input.occurredOn,
-        payment_method: input.paymentMethod,
-        payee: input.payee || null,
-        description: input.description || null,
-        receipt_path: input.receiptPath,
-        ocr_raw_text: input.ocrRawText,
-        receipt_filename: input.receiptFilename ?? null,
-        receipt_size_bytes: input.receiptSizeBytes ?? null,
-        receipt_mime: input.receiptMime ?? null,
-        extracted_data: input.extractedData ?? null,
-      },
-    ])
-    .select("id")
-    .single();
+    const { data: inserted, error } = await supabase
+      .from("transactions")
+      .insert([
+        {
+          user_id: user.id,
+          voucher_no: voucherNo,
+          category_id: input.categoryId,
+          amount_cents: input.amountCents,
+          occurred_on: input.occurredOn,
+          payment_method: input.paymentMethod,
+          payee: input.payee || null,
+          description: input.description || null,
+          receipt_path: input.receiptPath,
+          ocr_raw_text: input.ocrRawText,
+          receipt_filename: input.receiptFilename ?? null,
+          receipt_size_bytes: input.receiptSizeBytes ?? null,
+          receipt_mime: input.receiptMime ?? null,
+          extracted_data: input.extractedData ?? null,
+        },
+      ])
+      .select("id")
+      .single();
 
-  if (error) throw new Error(error.message);
+    if (!error) {
+      revalidatePath("/transactions");
+      revalidatePath("/dashboard");
+      // ID für das Hervorheben der neuen Buchung in der Liste
+      return (inserted as { id: string } | null)?.id ?? null;
+    }
+    if (error.code !== "23505") throw new Error(error.message);
+  }
 
-  revalidatePath("/transactions");
-  revalidatePath("/dashboard");
-
-  // ID für das Hervorheben der neuen Buchung in der Liste
-  return (inserted as { id: string } | null)?.id ?? null;
+  throw new Error("Belegnummer-Konflikt — bitte noch einmal auf Speichern tippen.");
 }
 
 export async function updateTransaction(id: string, input: TransactionInput) {
